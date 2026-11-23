@@ -15,7 +15,7 @@ all() ->
 
 groups() ->
     [{clear, [], cases()},
-     {ssl, [], [int4_range, exceptions]},
+     {ssl, [], [int4_range, exceptions, ssl_listen_notify]},
      {domain_socket, [], [int4_range]}].
 
 cases() ->
@@ -196,6 +196,45 @@ exceptions(_Config) ->
     {error, Reason} = pgo:query("select $1::interval", [none]),
     ?assertMatch("Error encoding type interval. Expected, {interval {{Hours::integer(), Minutes::integer(), Seconds::integer()}, Days::integer(), months::integer()}}. Got, none.", lists:flatten(pgo:format_error(Reason))),
 
+    ok.
+
+ssl_listen_notify(_Config) ->
+    %% A notifications connection over SSL must keep listening after a
+    %% notification arrives, so a second one reaches the listener too.
+    {ok, Pid} = pgo_notifications:start_link(#{host => "127.0.0.1",
+                                               port => 5434,
+                                               user => "test",
+                                               password => "password",
+                                               database => "test",
+                                               ssl => true,
+                                               ssl_options => [{verify, verify_none}]}),
+    unlink(Pid),
+    Monitor = erlang:monitor(process, Pid),
+    Chan = <<"ssl_chan">>,
+    {_, Ref} = pgo_notifications:listen(Pid, Chan),
+
+    ?assertMatch(#{command := notify}, pgo:query("NOTIFY ssl_chan, 'first'")),
+    receive
+        {notification, Pid, Ref, Chan, First} ->
+            ?assertEqual(<<"first">>, First)
+    after
+        1000 ->
+            ct:fail(timeout)
+    end,
+
+    ?assertMatch(#{command := notify}, pgo:query("NOTIFY ssl_chan, 'second'")),
+    receive
+        {notification, Pid, Ref, Chan, Second} ->
+            ?assertEqual(<<"second">>, Second);
+        {'DOWN', Monitor, process, Pid, Reason} ->
+            ct:fail({notifications_down, Reason})
+    after
+        1000 ->
+            ct:fail(timeout)
+    end,
+
+    erlang:demonitor(Monitor, [flush]),
+    gen_statem:stop(Pid),
     ok.
 
 select(_Config) ->
