@@ -1,0 +1,17 @@
+# This branch lets a Gleam project depend on pgo by Git, which Gleam allows
+# only for packages with a gleam.toml. It is pgo v0.20.0 with the fix of
+# https://github.com/erleans/pgo/pull/137, and it ends once a pgo release
+# on Hex carries that fix. The dependencies mirror rebar.config. The suites
+# live in ct/ because Gleam compiles a package's test/ directory.
+name = "pgo"
+version = "0.20.0"
+licences = ["Apache-2.0"]
+
+[dependencies]
+backoff = ">= 1.1.6 and < 2.0.0"
+pg_types = ">= 0.6.0 and < 0.7.0"
+opentelemetry_api = ">= 1.5.0 and < 2.0.0"
+
+[erlang]
+application_start_module = "pgo_app"
+extra_applications = ["ssl", "crypto", "public_key"]

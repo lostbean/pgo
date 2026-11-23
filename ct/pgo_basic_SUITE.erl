@@ -51,7 +51,7 @@ init_per_group(ssl, Config) ->
                                              port => 5434,
                                              ssl => true,
                                              ssl_options => [{verify_type, verify_peer},
-                                                             {cacertfile, "../../../../test/certs/server.crt"},
+                                                             {cacertfile, "../../../../ct/certs/server.crt"},
                                                              {verify_fun, {fun (_, valid, U) ->
                                                                                    {valid, U};
                                                                                (_, valid_peer, U) ->
